@@ -1,6 +1,7 @@
 import argparse
 import pprint
 import lexer
+import parser
 import JSToken as JST
 
 pp = pprint.PrettyPrinter(indent=2, width=120, sort_dicts=False)
@@ -12,6 +13,11 @@ def parse_args():
         nargs="?",
         default="test-files/full_lexer_test.js",
         help="Path to the JavaScript file to lex",
+    )
+    parser.add_argument(
+        "--parse",
+        action="store_true",
+        help="Parse tokens with CFG parser and print AST",
     )
     return parser.parse_args()
 
@@ -70,6 +76,14 @@ def main():
     print_group("Variabel", grouped["Variabel"])
     print_group("Math equation", grouped["Math equation"])
     print_group("Other", grouped["Other"])
+
+    if args.parse:
+        print("\nAST:")
+        try:
+            ast = parser.Parser(lex.tokens).parse()
+            pp.pprint(ast)
+        except parser.ParserError as err:
+            print(f"Parse error: {err}")
 
 
 if __name__ == "__main__":
