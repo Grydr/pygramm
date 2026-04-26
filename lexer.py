@@ -139,6 +139,8 @@ class Lexer:
                     self.add_token(JST.JSToken.DOT)
             case ",":
                 self.add_token(JST.JSToken.COMMA)
+            case ":":
+                self.add_token(JST.JSToken.COLON)
             case "!":
                 self.add_token(
                     JST.JSToken.NOTEQUAL if self.match("=") else JST.JSToken.EXCLAMATION

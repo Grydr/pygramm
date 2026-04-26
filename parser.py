@@ -1,38 +1,38 @@
 import JSToken as JST
 
-
-class ParserError(Exception):
-    pass
-
-
 class Parser:
     """
-    Recursive-descent parser for a practical JS subset.
+        CFG:
+            program          -> declaration* EOF
+            declaration      -> function_decl | variable_decl | if_stmt | while_stmt | for_stmt | switch_stmt | block | statement
+            function_decl    -> FUNCTION IDENTIFIER "(" parameters? ")" block
+            parameters       -> IDENTIFIER ("," IDENTIFIER)*
+            variable_decl    -> (LET | CONST | VAR) IDENTIFIER (assign_op expression)? ";"
+            if_stmt          -> IF "(" expression ")" declaration (ELSE declaration)?
+            while_stmt       -> WHILE "(" expression ")" declaration
+            for_stmt         -> FOR "(" for_init? ";" expression? ";" expression? ")" declaration
+            for_init         -> variable_decl_no_semi | expression
+            switch_stmt      -> SWITCH "(" expression ")" "{" switch_case* "}"
+            switch_case      -> CASE expression ":" declaration* | DEFAULT ":" declaration*
+            block            -> "{" declaration* "}"
+            statement        -> return_stmt | break_stmt | expression_stmt
+            return_stmt      -> RETURN expression? ";"
+            break_stmt       -> BREAK ";"
+            expression_stmt  -> expression ";"
 
-    CFG:
-      program        -> declaration* EOF
-      declaration    -> variable_decl | if_stmt | while_stmt | block | statement
-      variable_decl  -> (LET | CONST | VAR) IDENTIFIER (assign_op expression)? ";"
-      if_stmt        -> IF "(" expression ")" declaration (ELSE declaration)?
-      while_stmt     -> WHILE "(" expression ")" declaration
-      block          -> "{" declaration* "}"
-      statement      -> return_stmt | expression_stmt
-      return_stmt    -> RETURN expression? ";"
-      expression_stmt-> expression ";"
-
-      expression     -> assignment
-      assignment     -> logic_or (assign_op assignment)?
-      logic_or       -> logic_and ((OR | VBAR) logic_and)*
-      logic_and      -> equality ((AND | AMPER) equality)*
-      equality       -> comparison ((EQEQUAL | NOTEQUAL) comparison)*
-      comparison     -> term ((GREATER | GREATEREQUAL | LESS | LESSEQUAL) term)*
-      term           -> factor ((PLUS | MINUS) factor)*
-      factor         -> unary ((STAR | SLASH) unary)*
-      unary          -> (EXCLAMATION | PLUS | MINUS) unary | call
-      call           -> primary (("(" arguments? ")") | ("." IDENTIFIER))*
-      arguments      -> expression ("," expression)*
-      primary        -> NUMBER | STRING | TRUE | FALSE | NULL | IDENTIFIER | "(" expression ")"
-      assign_op      -> EQUAL | PLUSEQUAL | MINUSEQUAL | STAREQUAL | SLASHEQUAL
+            expression       -> assignment
+            assignment       -> logic_or (assign_op assignment)?
+            logic_or         -> logic_and ((OR | VBAR) logic_and)*
+            logic_and        -> equality ((AND | AMPER) equality)*
+            equality         -> comparison ((EQEQUAL | NOTEQUAL) comparison)*
+            comparison       -> term ((GREATER | GREATEREQUAL | LESS | LESSEQUAL) term)*
+            term             -> factor ((PLUS | MINUS) factor)*
+            factor           -> unary ((STAR | SLASH) unary)*
+            unary            -> (EXCLAMATION | PLUS | MINUS | TYPEOF | DELETE | VOID) unary | call
+            call             -> primary (("(" arguments? ")") | ("." IDENTIFIER))*
+            arguments        -> expression ("," expression)*
+            primary          -> NUMBER | STRING | TRUE | FALSE | NULL | IDENTIFIER | "(" expression ")"
+            assign_op        -> EQUAL | PLUSEQUAL | MINUSEQUAL | STAREQUAL | SLASHEQUAL
     """
 
     ASSIGNMENT_OPS = {
@@ -54,6 +54,8 @@ class Parser:
         return {"type": "Program", "body": statements}
 
     def _declaration(self):
+        if self._match(JST.JSToken.FUNCTION):
+            return self._function_declaration()
         if self._match(JST.JSToken.LET, JST.JSToken.CONST, JST.JSToken.VAR):
             keyword = self._previous()
             return self._variable_declaration(keyword)
@@ -61,11 +63,43 @@ class Parser:
             return self._if_statement()
         if self._match(JST.JSToken.WHILE):
             return self._while_statement()
+        if self._match(JST.JSToken.FOR):
+            return self._for_statement()
+        if self._match(JST.JSToken.SWITCH):
+            return self._switch_statement()
         if self._match(JST.JSToken.LBRACE):
             return self._block_statement()
         return self._statement()
 
-    def _variable_declaration(self, keyword_token):
+    def _function_declaration(self):
+        keyword = self._previous()
+        name = self._consume(JST.JSToken.IDENTIFIER, "Expected function name.")
+        self._consume(JST.JSToken.LPAR, "Expected '(' after function name.")
+
+        parameters = []
+        if not self._check(JST.JSToken.RPAR):
+            parameters.append(
+                self._consume(JST.JSToken.IDENTIFIER, "Expected parameter name.").value
+            )
+            while self._match(JST.JSToken.COMMA):
+                parameters.append(
+                    self._consume(
+                        JST.JSToken.IDENTIFIER, "Expected parameter name after ','."
+                    ).value
+                )
+
+        self._consume(JST.JSToken.RPAR, "Expected ')' after parameters.")
+        self._consume(JST.JSToken.LBRACE, "Expected '{' before function body.")
+        body = self._block_statement()
+        return {
+            "type": "FunctionDeclaration",
+            "name": name.value,
+            "params": parameters,
+            "body": body,
+            "line": keyword.line_num,
+        }
+
+    def _variable_declaration(self, keyword_token, require_semicolon=True):
         name = self._consume(JST.JSToken.IDENTIFIER, "Expected variable name.")
 
         initializer = None
@@ -74,7 +108,8 @@ class Parser:
             assign_op = self._advance().tokenType.name
             initializer = self._expression()
 
-        self._consume(JST.JSToken.SEMI, "Expected ';' after variable declaration.")
+        if require_semicolon:
+            self._consume(JST.JSToken.SEMI, "Expected ';' after variable declaration.")
         return {
             "type": "VariableDeclaration",
             "kind": keyword_token.tokenType.name.lower(),
@@ -116,6 +151,81 @@ class Parser:
             "line": keyword.line_num,
         }
 
+    def _for_statement(self):
+        keyword = self._previous()
+        self._consume(JST.JSToken.LPAR, "Expected '(' after 'for'.")
+
+        initializer = None
+        if self._match(JST.JSToken.SEMI):
+            initializer = None
+        elif self._match(JST.JSToken.LET, JST.JSToken.CONST, JST.JSToken.VAR):
+            init_keyword = self._previous()
+            initializer = self._variable_declaration(init_keyword, require_semicolon=False)
+            self._consume(JST.JSToken.SEMI, "Expected ';' after for-loop initializer.")
+        else:
+            initializer = self._expression()
+            self._consume(JST.JSToken.SEMI, "Expected ';' after for-loop initializer.")
+
+        condition = None
+        if not self._check(JST.JSToken.SEMI):
+            condition = self._expression()
+        self._consume(JST.JSToken.SEMI, "Expected ';' after for-loop condition.")
+
+        increment = None
+        if not self._check(JST.JSToken.RPAR):
+            increment = self._expression()
+        self._consume(JST.JSToken.RPAR, "Expected ')' after for clauses.")
+
+        body = self._declaration()
+        return {
+            "type": "ForStatement",
+            "initializer": initializer,
+            "condition": condition,
+            "increment": increment,
+            "body": body,
+            "line": keyword.line_num,
+        }
+
+    def _switch_statement(self):
+        keyword = self._previous()
+        self._consume(JST.JSToken.LPAR, "Expected '(' after 'switch'.")
+        discriminant = self._expression()
+        self._consume(JST.JSToken.RPAR, "Expected ')' after switch expression.")
+        self._consume(JST.JSToken.LBRACE, "Expected '{' before switch cases.")
+
+        cases = []
+        while not self._check(JST.JSToken.RBRACE) and not self._is_at_end():
+            if self._match(JST.JSToken.CASE):
+                case_expr = self._expression()
+                self._consume(JST.JSToken.COLON, "Expected ':' after case expression.")
+                body = self._case_body()
+                cases.append({"type": "SwitchCase", "test": case_expr, "consequent": body})
+            elif self._match(JST.JSToken.DEFAULT):
+                self._consume(JST.JSToken.COLON, "Expected ':' after default.")
+                body = self._case_body()
+                cases.append({"type": "SwitchCase", "test": None, "consequent": body})
+            else:
+                raise self._error(self._peek(), "Expected 'case' or 'default' in switch.")
+
+        self._consume(JST.JSToken.RBRACE, "Expected '}' after switch body.")
+        return {
+            "type": "SwitchStatement",
+            "discriminant": discriminant,
+            "cases": cases,
+            "line": keyword.line_num,
+        }
+
+    def _case_body(self):
+        body = []
+        while (
+            not self._check(JST.JSToken.CASE)
+            and not self._check(JST.JSToken.DEFAULT)
+            and not self._check(JST.JSToken.RBRACE)
+            and not self._is_at_end()
+        ):
+            body.append(self._declaration())
+        return body
+
     def _block_statement(self):
         statements = []
         while not self._check(JST.JSToken.RBRACE) and not self._is_at_end():
@@ -126,6 +236,8 @@ class Parser:
     def _statement(self):
         if self._match(JST.JSToken.RETURN):
             return self._return_statement()
+        if self._match(JST.JSToken.BREAK):
+            return self._break_statement()
         return self._expression_statement()
 
     def _return_statement(self):
@@ -135,6 +247,11 @@ class Parser:
             value = self._expression()
         self._consume(JST.JSToken.SEMI, "Expected ';' after return value.")
         return {"type": "ReturnStatement", "value": value, "line": keyword.line_num}
+
+    def _break_statement(self):
+        keyword = self._previous()
+        self._consume(JST.JSToken.SEMI, "Expected ';' after break.")
+        return {"type": "BreakStatement", "line": keyword.line_num}
 
     def _expression_statement(self):
         expr = self._expression()
@@ -216,7 +333,14 @@ class Parser:
         return expr
 
     def _unary(self):
-        if self._match(JST.JSToken.EXCLAMATION, JST.JSToken.PLUS, JST.JSToken.MINUS):
+        if self._match(
+            JST.JSToken.EXCLAMATION,
+            JST.JSToken.PLUS,
+            JST.JSToken.MINUS,
+            JST.JSToken.TYPEOF,
+            JST.JSToken.DELETE,
+            JST.JSToken.VOID,
+        ):
             operator = self._previous().tokenType.name
             right = self._unary()
             return {"type": "UnaryExpression", "operator": operator, "argument": right}
@@ -301,4 +425,5 @@ class Parser:
         raise self._error(self._peek(), message)
 
     def _error(self, token, message):
-        return ParserError(f"Line {token.line_num}: {message}")
+        err = f"Line: {token.line_num}; Error: {message}"
+        raise Exception(err)

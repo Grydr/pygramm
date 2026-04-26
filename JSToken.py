@@ -1,5 +1,4 @@
 from enum import Enum, auto
-import token
 
 class JSToken(Enum):
     LBRACE = auto()
@@ -9,6 +8,7 @@ class JSToken(Enum):
     SEMI = auto()
     DOT = auto()
     COMMA = auto()
+    COLON = auto()
 
     PLUS = auto()
     PLUSEQUAL = auto()
@@ -169,6 +169,7 @@ SYMBOL_TOKENS = {
     JSToken.SEMI,
     JSToken.DOT,
     JSToken.COMMA,
+    JSToken.COLON,
     JSToken.AND,
     JSToken.AMPER,
     JSToken.OR,
