@@ -7,14 +7,15 @@ class JSToken(Enum):
     LPAR = auto()
     RPAR = auto()
     SEMI = auto()
+    DOT = auto()
+    COMMA = auto()
+
     PLUS = auto()
     PLUSEQUAL = auto()
     MINUS = auto()
     MINUSEQUAL = auto()
     STAR = auto()
     STAREQUAL = auto()
-    DOT = auto()
-    COMMA = auto()
     NOTEQUAL = auto()
     EXCLAMATION = auto()
     EQEQUAL = auto()
@@ -92,7 +93,7 @@ class JSToken(Enum):
     YIELD = auto()
 
 
-Keywords = {
+KEYWORDS = {
     "await": JSToken.AWAIT,
     "break": JSToken.BREAK,
     "case": JSToken.CASE,
@@ -139,6 +140,45 @@ Keywords = {
     "while": JSToken.WHILE,
     "with": JSToken.WITH,
     "yield": JSToken.YIELD,
+}
+
+MATH_EQUATION_TOKENS = {
+    JSToken.PLUS,
+    JSToken.PLUSEQUAL,
+    JSToken.MINUS,
+    JSToken.MINUSEQUAL,
+    JSToken.STAR,
+    JSToken.STAREQUAL,
+    JSToken.SLASH,
+    JSToken.SLASHEQUAL,
+    JSToken.EQUAL,
+    JSToken.EQEQUAL,
+    JSToken.NOTEQUAL,
+    JSToken.EXCLAMATION,
+    JSToken.LESS,
+    JSToken.LESSEQUAL,
+    JSToken.GREATER,
+    JSToken.GREATEREQUAL,
+}
+
+SYMBOL_TOKENS = {
+    JSToken.LBRACE,
+    JSToken.RBRACE,
+    JSToken.LPAR,
+    JSToken.RPAR,
+    JSToken.SEMI,
+    JSToken.DOT,
+    JSToken.COMMA,
+    JSToken.AND,
+    JSToken.AMPER,
+    JSToken.OR,
+    JSToken.VBAR,
+}
+
+VARIABLE_TOKENS = {
+    JSToken.IDENTIFIER,
+    JSToken.NUMBER,
+    JSToken.STRING,
 }
 
 

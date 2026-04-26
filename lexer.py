@@ -102,7 +102,7 @@ class Lexer:
 
         word = self.source_code[self.start : self.current]
         token_type = (
-            JST.Keywords[word] if word in JST.Keywords else JST.JSToken.IDENTIFIER
+            JST.KEYWORDS[word] if word in JST.KEYWORDS else JST.JSToken.IDENTIFIER
         )
 
         self.add_token(token_type)
