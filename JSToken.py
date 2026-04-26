@@ -1,5 +1,5 @@
 from enum import Enum, auto
-
+import token
 
 class JSToken(Enum):
     LBRACE = auto()
@@ -8,8 +8,11 @@ class JSToken(Enum):
     RPAR = auto()
     SEMI = auto()
     PLUS = auto()
+    PLUSEQUAL = auto()
     MINUS = auto()
+    MINUSEQUAL = auto()
     STAR = auto()
+    STAREQUAL = auto()
     DOT = auto()
     COMMA = auto()
     NOTEQUAL = auto()
@@ -26,6 +29,10 @@ class JSToken(Enum):
     NUMBER = auto()
     IDENTIFIER = auto()
     ENDMARKER = auto()
+    AMPER = auto()
+    AND = auto()
+    VBAR = auto()
+    OR = auto()
 
     # Keywords
     AWAIT = auto()
